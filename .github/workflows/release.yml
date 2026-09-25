@@ -1,0 +1,62 @@
+name: Release
+
+# Publishes a GitHub release with main.js, manifest.json and styles.css attached.
+#
+# Two ways to trigger it:
+#   1. Actions tab → Release → "Run workflow". Uses the version in manifest.json.
+#   2. Push a tag whose name equals the version in manifest.json (for example 1.0.1).
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - '*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Work out the version
+        id: version
+        run: |
+          version=$(node -p "require('./manifest.json').version")
+          if [ "${GITHUB_REF_TYPE}" = "tag" ] && [ "${GITHUB_REF_NAME}" != "$version" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match manifest.json version $version"
+            exit 1
+          fi
+          if ! node -e "process.exit(require('./versions.json')['$version'] ? 0 : 1)"; then
+            echo "::error::versions.json has no entry for $version"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if gh release view "$VERSION" > /dev/null 2>&1; then
+            echo "::error::Release $VERSION already exists. Bump the version in manifest.json first."
+            exit 1
+          fi
+          gh release create "$VERSION" \
+            --target "$GITHUB_SHA" \
+            --title "$VERSION" \
+            --generate-notes \
+            main.js manifest.json styles.css

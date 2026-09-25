@@ -1,0 +1,9 @@
+{
+	"id": "incremental-writing",
+	"name": "Incremental Writing with Ollama",
+	"version": "1.0.0",
+	"minAppVersion": "1.7.2",
+	"description": "Grow drafts through spaced writing sprints, with Socratic critique, bridging, outlining, and tangent extraction powered by a local Ollama model.",
+	"author": "Samarth",
+	"isDesktopOnly": false
+}
